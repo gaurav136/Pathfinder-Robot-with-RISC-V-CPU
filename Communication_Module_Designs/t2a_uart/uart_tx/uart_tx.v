@@ -29,12 +29,98 @@ module uart_tx(
 );
 
 //////////////////DO NOT MAKE ANY CHANGES ABOVE THIS LINE//////////////////
+parameter	TX_START_BIT = 2'b00,
+				TX_DATA_BITS = 2'b01,
+				TX_STOP_BIT = 2'b10;
+			 
+reg [2:0] Bit_Index ;
+reg [1:0] State ;
+reg [7:0] r_tx_data;
+integer counter ;
+integer Clk_Cyc_per_Bit;
 
 initial begin
-	 tx = 0;
+	 tx = 0; 
+	 Bit_Index =0;
+	 State = TX_START_BIT;
+	 counter =0;
+	 Clk_Cyc_per_Bit =433;
 end
 
-////////// Add your code here ///////////////////
+always @(posedge clk_50M) 
+begin
+	case (State)
+	
+	TX_START_BIT:
+	begin
+		if (data>0)
+		begin
+			if(counter < Clk_Cyc_per_Bit)
+			begin
+				tx <=0;
+				State <= TX_START_BIT;
+				counter <= counter +1;
+			end
+			else
+			begin
+				r_tx_data <= data;
+				counter<=0;
+				State <= TX_DATA_BITS;
+			end
+		end
+		else
+		begin
+			tx <=1;
+			State <= TX_START_BIT;
+		end
+	end
+	
+	TX_DATA_BITS:
+	begin
+		if(Bit_Index < 7)
+		begin
+			if(counter < Clk_Cyc_per_Bit)
+			begin
+				tx <= r_tx_data[Bit_Index];
+				counter <= counter +1;
+			end
+			else
+			begin
+				counter =0;
+				Bit_Index<= Bit_Index +1;
+			end
+		end
+		else
+		begin
+			if(counter < Clk_Cyc_per_Bit)
+			begin
+				tx<= r_tx_data[Bit_Index];
+				counter <= counter +1;
+			end
+			else
+			begin
+				counter <= 0;
+				State <= TX_STOP_BIT;
+			end
+		end
+	end
+	TX_STOP_BIT:
+	begin
+		if(counter < Clk_Cyc_per_Bit)
+		begin
+			tx <= 1;
+			State <= TX_STOP_BIT;
+			counter <= counter +1;
+		end
+		else
+		begin
+			State <=TX_START_BIT;
+			counter <=0;
+			Bit_Index <=0;
+		end
+	end
+	endcase
+end
 
 //////////////////DO NOT MAKE ANY CHANGES BELOW THIS LINE//////////////////
 
